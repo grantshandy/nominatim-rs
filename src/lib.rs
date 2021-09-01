@@ -1,6 +1,8 @@
 use serde_json::Value;
 use thiserror::Error;
 
+
+/// The main struct for getting geocoding data.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Nominatim {
     pub latitude: f64,
@@ -13,6 +15,7 @@ pub struct Nominatim {
 }
 
 impl Nominatim {
+    /// Get data from an openstreetmap ID.
     pub async fn lookup<T: AsRef<str>>(osm_id: T) -> Result<Self, NominatimError> {
         let uri = &format!(
             "https://nominatim.openstreetmap.org/lookup?osm_ids={}&format=json",
@@ -32,6 +35,7 @@ impl Nominatim {
         return Self::parse(&geocode_json[0]);
     }
 
+    /// Get data from the name of a location.
     pub async fn search<T: AsRef<str>>(name: T) -> Result<Self, NominatimError> {
         let uri = &format!(
             "https://nominatim.openstreetmap.org/search?q={}&format=json",
@@ -51,6 +55,7 @@ impl Nominatim {
         return Self::parse(&geocode_json[0]);
     }
 
+    /// Get data from the coordinates of a location.
     pub async fn reverse(lat: f64, lon: f64) -> Result<Self, NominatimError> {
         let uri = &format!(
             "https://nominatim.openstreetmap.org/reverse?lat={}&lon={}&format=json",
@@ -70,6 +75,7 @@ impl Nominatim {
         return Self::parse(&geocode_json);
     }
 
+    /// Check the status of the nominatim server.
     pub async fn status() -> Result<(), NominatimError> {
         let plaintext = match surf::get("https://nominatim.openstreetmap.org/status.php?format=json").recv_string().await {
             Ok(data) => data,
