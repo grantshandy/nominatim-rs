@@ -51,7 +51,7 @@ impl NominatimClient {
             Err(error) => return Err(NominatimError::Json(error.to_string())),
         };
 
-        return Nominatim::parse(&geocode_json[0]);
+        Nominatim::parse(&geocode_json[0])
     }
 
     pub async fn get<T: AsRef<str>>(self, uri: T) -> Result<String, NominatimError> {
@@ -79,7 +79,7 @@ impl NominatimClient {
             Err(error) => return Err(NominatimError::Json(error.to_string())),
         };
 
-        return Nominatim::parse(&geocode_json[0]);
+        Nominatim::parse(&geocode_json[0])
     }
 
     /// Get data from the coordinates of a location.
@@ -95,7 +95,7 @@ impl NominatimClient {
             Err(error) => return Err(NominatimError::Json(error.to_string())),
         };
 
-        return Nominatim::parse(&geocode_json);
+        Nominatim::parse(&geocode_json)
     }
 
     /// Check the status of the nominatim server.
@@ -122,13 +122,13 @@ impl NominatimClient {
         };
 
         match status {
-            0 => return Ok(()),
-            700 => return Err(NominatimError::Http("No database".to_string())),
-            701 => return Err(NominatimError::Http("Module failed".to_string())),
-            702 => return Err(NominatimError::Http("Module call failed".to_string())),
-            703 => return Err(NominatimError::Http("Query failed".to_string())),
-            704 => return Err(NominatimError::Http("No value".to_string())),
-            _ => return Err(NominatimError::Http(status.to_string())),
+            0 => Ok(()),
+            700 => Err(NominatimError::Http("No database".to_string())),
+            701 => Err(NominatimError::Http("Module failed".to_string())),
+            702 => Err(NominatimError::Http("Module call failed".to_string())),
+            703 => Err(NominatimError::Http("Query failed".to_string())),
+            704 => Err(NominatimError::Http("No value".to_string())),
+            _ => Err(NominatimError::Http(status.to_string())),
         }
     }
 }
@@ -193,14 +193,14 @@ impl Nominatim {
             None => None,
         };
 
-        return Ok(Self {
+        Ok(Self {
             latitude,
             longitude,
-            location: location.clone(),
-            place_id: place_id.clone(),
-            osm_id: osm_id.clone(),
+            location,
+            place_id,
+            osm_id,
             address,
-        });
+        })
     }
 }
 
@@ -271,10 +271,7 @@ impl Address {
         };
 
         let postcode = match &data["postcode"] {
-            Value::Number(s) => match s.as_u64() {
-                Some(n) => Some(n as usize),
-                None => None,
-            },
+            Value::Number(s) => s.as_u64().map(|n| n as usize),
             _ => None,
         };
 
@@ -302,6 +299,6 @@ impl Address {
             country_code,
         };
 
-        return Some(address);
+        Some(address)
     }
 }
