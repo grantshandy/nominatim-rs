@@ -1,6 +1,25 @@
 use serde_json::Value;
 use thiserror::Error;
 
+pub enum IdentificationMethod {
+    Referer(String),
+    UserAgent(String),
+}
+
+impl IdentificationMethod {
+    pub fn header(&self) -> String {
+        match self {
+            Self::Referer(_) => "Referer".to_string(),
+            Self::UserAgent(_) => "User-Agent".to_string(),
+        }
+    }
+    pub fn value(&self) -> String {
+        match self {
+            Self::Referer(value) => value.to_string(),
+            Self::UserAgent(value) => value.to_string(),
+        }
+    }
+}
 
 /// The main struct for getting geocoding data.
 #[derive(Clone, PartialEq, Debug)]
@@ -13,74 +32,77 @@ pub struct Nominatim {
     /// Address is only available on search.
     pub address: Option<Address>,
 }
+pub struct NominatimClient {
+    pub identification: IdentificationMethod,
+}
 
-impl Nominatim {
+impl NominatimClient {
     /// Get data from an openstreetmap ID.
-    pub async fn lookup<T: AsRef<str>>(osm_id: T) -> Result<Self, NominatimError> {
+    pub async fn lookup<T: AsRef<str>>(self, osm_id: T) -> Result<Nominatim, NominatimError> {
         let uri = &format!(
             "https://nominatim.openstreetmap.org/lookup?osm_ids={}&format=json",
             osm_id.as_ref().replace(" ", "")
         );
 
-        let geocode = match surf::get(uri).recv_string().await {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Http(error.to_string())),
-        };
+        let geocode = self.get(uri).await?;
 
         let geocode_json: Value = match serde_json::from_str(&geocode) {
             Ok(data) => data,
             Err(error) => return Err(NominatimError::Json(error.to_string())),
         };
 
-        return Self::parse(&geocode_json[0]);
+        return Nominatim::parse(&geocode_json[0]);
+    }
+
+    pub async fn get<T: AsRef<str>>(self, uri: T) -> Result<String, NominatimError> {
+        surf::get(uri)
+            .header(
+                self.identification.header().as_str(),
+                self.identification.value().as_str(),
+            )
+            .recv_string()
+            .await
+            .map_err(|error| NominatimError::Http(error.to_string()))
     }
 
     /// Get data from the name of a location.
-    pub async fn search<T: AsRef<str>>(name: T) -> Result<Self, NominatimError> {
+    pub async fn search<T: AsRef<str>>(self, name: T) -> Result<Nominatim, NominatimError> {
         let uri = &format!(
             "https://nominatim.openstreetmap.org/search?q={}&format=json",
             name.as_ref().replace(" ", "+")
         );
 
-        let geocode = match surf::get(uri).recv_string().await {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Http(error.to_string())),
-        };
+        let geocode = self.get(uri).await?;
 
         let geocode_json: Value = match serde_json::from_str(&geocode) {
             Ok(data) => data,
             Err(error) => return Err(NominatimError::Json(error.to_string())),
         };
 
-        return Self::parse(&geocode_json[0]);
+        return Nominatim::parse(&geocode_json[0]);
     }
 
     /// Get data from the coordinates of a location.
-    pub async fn reverse(lat: f64, lon: f64) -> Result<Self, NominatimError> {
+    pub async fn reverse(self, lat: f64, lon: f64) -> Result<Nominatim, NominatimError> {
         let uri = &format!(
             "https://nominatim.openstreetmap.org/reverse?lat={}&lon={}&format=json",
             lat, lon
         );
-
-        let geocode = match surf::get(uri).recv_string().await {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Http(error.to_string())),
-        };
+        let geocode = self.get(uri).await?;
 
         let geocode_json: Value = match serde_json::from_str(&geocode) {
             Ok(data) => data,
             Err(error) => return Err(NominatimError::Json(error.to_string())),
         };
 
-        return Self::parse(&geocode_json);
+        return Nominatim::parse(&geocode_json);
     }
 
     /// Check the status of the nominatim server.
-    pub async fn status() -> Result<(), NominatimError> {
-        let plaintext = match surf::get("https://nominatim.openstreetmap.org/status.php?format=json").recv_string().await {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Http(error.to_string())),
-        };
+    pub async fn status(self) -> Result<(), NominatimError> {
+        let plaintext = self
+            .get("https://nominatim.openstreetmap.org/status.php?format=json")
+            .await?;
 
         let json: Value = match serde_json::from_str(&plaintext) {
             Ok(data) => data,
@@ -109,8 +131,10 @@ impl Nominatim {
             _ => return Err(NominatimError::Http(status.to_string())),
         }
     }
+}
 
-    fn parse(geocode_json: &Value) -> Result<Self, NominatimError> {
+impl Nominatim {
+    pub fn parse(geocode_json: &Value) -> Result<Self, NominatimError> {
         let latitude = match &geocode_json["lat"] {
             Value::String(s) => s.clone(),
             _ => "UNKNOWN".to_string(),
