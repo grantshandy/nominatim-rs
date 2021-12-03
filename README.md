@@ -1,7 +1,7 @@
 # nominatim-rs
 A reverse geocoding API client powered by openstreetmap in Rust.
 ```
-nominatim = "0.1.0"
+nominatim = "0.2.1"
 ```
 
 ## Examples
