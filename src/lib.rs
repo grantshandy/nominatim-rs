@@ -1,5 +1,4 @@
 use serde_json::Value;
-use serde::Serialize;
 use thiserror::Error;
 
 pub enum IdentificationMethod {
@@ -214,7 +213,7 @@ pub enum NominatimError {
     Json(String),
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Address {
     pub house_number: Option<String>,
     pub road: Option<String>,
