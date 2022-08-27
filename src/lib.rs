@@ -1,6 +1,6 @@
 use serde_json::Value;
 use thiserror::Error;
-use rocket::serde::Serialize;
+use serde::Serialize;
 
 pub enum IdentificationMethod {
     Referer(String),
