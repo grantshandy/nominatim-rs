@@ -1,5 +1,6 @@
 use serde_json::Value;
 use thiserror::Error;
+use rocket::serde::Serialize;
 
 pub enum IdentificationMethod {
     Referer(String),
@@ -213,7 +214,7 @@ pub enum NominatimError {
     Json(String),
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Address {
     pub house_number: Option<String>,
     pub road: Option<String>,
