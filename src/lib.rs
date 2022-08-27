@@ -217,6 +217,7 @@ pub enum NominatimError {
 pub struct Address {
     pub house_number: Option<String>,
     pub road: Option<String>,
+    pub village: Option<String>,
     pub suburb: Option<String>,
     pub neighbourhood: Option<String>,
     pub town: Option<String>,
@@ -236,6 +237,11 @@ impl Address {
         };
 
         let road = match &data["road"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let village = match &data["village"] {
             Value::String(s) => Some(s.clone()),
             _ => None,
         };
@@ -288,6 +294,7 @@ impl Address {
         let address = Address {
             house_number,
             road,
+            village,
             suburb,
             neighbourhood,
             town,
