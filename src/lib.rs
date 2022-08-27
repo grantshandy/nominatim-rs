@@ -1,4 +1,5 @@
 use serde_json::Value;
+use serde::Serialize;
 use thiserror::Error;
 
 pub enum IdentificationMethod {
