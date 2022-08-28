@@ -216,6 +216,9 @@ pub enum NominatimError {
 
 #[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Address {
+    pub office: Option<String>,
+    pub leisure: Option<String>,
+    pub shop: Option<String>,
     pub amenity: Option<String>,
     pub highway: Option<String>,
     pub hamlet: Option<String>,
@@ -240,6 +243,21 @@ pub struct Address {
 
 impl Address {
     pub fn from_json(data: &Value) -> Option<Self> {
+        let office = match &data["office"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let leisure = match &data["leisure"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let shop = match &data["shop"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
         let amenity = match &data["amenity"] {
             Value::String(s) => Some(s.clone()),
             _ => None,
@@ -341,6 +359,9 @@ impl Address {
         };
 
         let address = Address {
+            office,
+            leisure,
+            shop,
             amenity,
             highway,
             hamlet,
