@@ -216,15 +216,23 @@ pub enum NominatimError {
 
 #[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Address {
+    pub amenity: Option<String>,
+    pub highway: Option<String>,
+    pub hamlet: Option<String>,
+    pub building: Option<String>,
+    pub tourism: Option<String>,
     pub house_number: Option<String>,
     pub road: Option<String>,
+    pub residential: Option<String>,
     pub village: Option<String>,
     pub suburb: Option<String>,
     pub neighbourhood: Option<String>,
     pub town: Option<String>,
     pub city: Option<String>,
+    pub municipality: Option<String>,
     pub county: Option<String>,
     pub state: Option<String>,
+    pub state_district: Option<String>,
     pub postcode: Option<usize>,
     pub country: Option<String>,
     pub country_code: Option<String>,
@@ -232,12 +240,42 @@ pub struct Address {
 
 impl Address {
     pub fn from_json(data: &Value) -> Option<Self> {
+        let amenity = match &data["amenity"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let highway = match &data["highway"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let hamlet = match &data["hamlet"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let building = match &data["building"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let tourism = match &data["tourism"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
         let house_number = match &data["house_number"] {
             Value::String(s) => Some(s.clone()),
             _ => None,
         };
 
         let road = match &data["road"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let residential = match &data["residential"] {
             Value::String(s) => Some(s.clone()),
             _ => None,
         };
@@ -267,12 +305,22 @@ impl Address {
             _ => None,
         };
 
+        let municipality = match &data["municipality"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
         let county = match &data["county"] {
             Value::String(s) => Some(s.clone()),
             _ => None,
         };
 
         let state = match &data["state"] {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
+        };
+
+        let state_district = match &data["state_district"] {
             Value::String(s) => Some(s.clone()),
             _ => None,
         };
@@ -293,15 +341,23 @@ impl Address {
         };
 
         let address = Address {
+            amenity,
+            highway,
+            hamlet,
+            building,
+            tourism,
             house_number,
             road,
+            residential,
             village,
             suburb,
             neighbourhood,
             town,
             city,
+            municipality,
             county,
             state,
+            state_district,
             postcode,
             country,
             country_code,
