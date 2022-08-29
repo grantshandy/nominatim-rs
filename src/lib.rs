@@ -32,6 +32,7 @@ pub struct Nominatim {
     pub osm_id: usize,
     /// Address is only available on search.
     pub address: Option<Address>,
+    pub raw: Option<Value>,
 }
 pub struct NominatimClient {
     pub identification: IdentificationMethod,
@@ -90,6 +91,8 @@ impl NominatimClient {
             lat, lon
         );
         let geocode = self.get(uri).await?;
+
+        // self.raw_json = geocode.clone();
 
         let geocode_json: Value = match serde_json::from_str(&geocode) {
             Ok(data) => data,
@@ -194,6 +197,11 @@ impl Nominatim {
             None => None,
         };
 
+        let raw: Option<Value> = match geocode_json.get("address") {
+            Some(data) => Some(data.clone()),
+            None => None,
+        };
+
         Ok(Self {
             latitude,
             longitude,
@@ -201,6 +209,7 @@ impl Nominatim {
             place_id,
             osm_id,
             address,
+            raw,
         })
     }
 }
