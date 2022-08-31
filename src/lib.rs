@@ -1,304 +1,226 @@
-use serde_json::Value;
-use thiserror::Error;
+#![doc = include_str!("../README.md")]
 
-pub enum IdentificationMethod {
-    Referer(String),
-    UserAgent(String),
+use std::str::FromStr;
+
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use serde::{Deserialize, Serialize};
+use url::Url;
+
+mod ident;
+
+pub use ident::IdentificationMethod;
+
+/// The interface for accessing a nominatim API server.
+pub struct Client {
+    ident: IdentificationMethod, // how to access the server
+    base_url: Url,               // defaults to https://nominatim.openstreetmap.org
+    client: reqwest::Client,
 }
 
-impl IdentificationMethod {
-    pub fn header(&self) -> String {
-        match self {
-            Self::Referer(_) => "Referer".to_string(),
-            Self::UserAgent(_) => "User-Agent".to_string(),
+impl Client {
+    pub fn new(ident: IdentificationMethod) -> Self {
+        Self {
+            ident,
+            base_url: Url::parse("https://nominatim.openstreetmap.org/").unwrap(),
+            client: reqwest::Client::new(),
         }
     }
-    pub fn value(&self) -> String {
-        match self {
-            Self::Referer(value) => value.to_string(),
-            Self::UserAgent(value) => value.to_string(),
-        }
-    }
-}
 
-/// The main struct for getting geocoding data.
-#[derive(Clone, PartialEq, Debug)]
-pub struct Nominatim {
-    pub latitude: f64,
-    pub longitude: f64,
-    pub location: String,
-    pub place_id: usize,
-    pub osm_id: usize,
-    /// Address is only available on search.
-    pub address: Option<Address>,
-}
-pub struct NominatimClient {
-    pub identification: IdentificationMethod,
-}
+    /// Set the client's internal base url for all the requests.
+    pub fn set_base_url(&mut self, url: impl AsRef<str>) -> Result<(), url::ParseError> {
+        self.base_url = Url::parse(url.as_ref())?;
 
-impl NominatimClient {
-    /// Get data from an openstreetmap ID.
-    pub async fn lookup<T: AsRef<str>>(self, osm_id: T) -> Result<Nominatim, NominatimError> {
-        let uri = &format!(
-            "https://nominatim.openstreetmap.org/lookup?osm_ids={}&format=json",
-            osm_id.as_ref().replace(" ", "")
-        );
-
-        let geocode = self.get(uri).await?;
-
-        let geocode_json: Value = match serde_json::from_str(&geocode) {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Json(error.to_string())),
-        };
-
-        Nominatim::parse(&geocode_json[0])
-    }
-
-    pub async fn get<T: AsRef<str>>(self, uri: T) -> Result<String, NominatimError> {
-        surf::get(uri)
-            .header(
-                self.identification.header().as_str(),
-                self.identification.value().as_str(),
-            )
-            .recv_string()
-            .await
-            .map_err(|error| NominatimError::Http(error.to_string()))
-    }
-
-    /// Get data from the name of a location.
-    pub async fn search<T: AsRef<str>>(self, name: T) -> Result<Nominatim, NominatimError> {
-        let uri = &format!(
-            "https://nominatim.openstreetmap.org/search?q={}&format=json",
-            name.as_ref().replace(" ", "+")
-        );
-
-        let geocode = self.get(uri).await?;
-
-        let geocode_json: Value = match serde_json::from_str(&geocode) {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Json(error.to_string())),
-        };
-
-        Nominatim::parse(&geocode_json[0])
-    }
-
-    /// Get data from the coordinates of a location.
-    pub async fn reverse(self, lat: f64, lon: f64) -> Result<Nominatim, NominatimError> {
-        let uri = &format!(
-            "https://nominatim.openstreetmap.org/reverse?lat={}&lon={}&format=json",
-            lat, lon
-        );
-        let geocode = self.get(uri).await?;
-
-        let geocode_json: Value = match serde_json::from_str(&geocode) {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Json(error.to_string())),
-        };
-
-        Nominatim::parse(&geocode_json)
+        Ok(())
     }
 
     /// Check the status of the nominatim server.
-    pub async fn status(self) -> Result<(), NominatimError> {
-        let plaintext = self
-            .get("https://nominatim.openstreetmap.org/status.php?format=json")
-            .await?;
+    pub async fn status(&self) -> Result<Status, reqwest::Error> {
+        let mut url = self.base_url.clone();
+        url.set_path("status.php");
+        url.set_query(Some("format=json"));
 
-        let json: Value = match serde_json::from_str(&plaintext) {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Json(error.to_string())),
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_str(&self.ident.header()).unwrap(),
+            HeaderValue::from_str(&self.ident.value()).unwrap(),
+        );
+
+        let response = match self.client.get(url).headers(headers).send().await {
+            Ok(response) => response,
+            Err(err) => return Err(err),
         };
 
-        let status = match &json["status"] {
-            Value::Number(s) => match s.as_u64() {
-                Some(n) => n as usize,
-                None => {
-                    return Err(NominatimError::Json(
-                        "couldn't find the geocoded place_id as a number".to_string(),
-                    ))
-                }
-            },
-            _ => return Err(NominatimError::Json("No Status Code".to_string())),
+        let status: Status = match response.json().await {
+            Ok(status) => status,
+            Err(err) => return Err(err),
         };
 
-        match status {
-            0 => Ok(()),
-            700 => Err(NominatimError::Http("No database".to_string())),
-            701 => Err(NominatimError::Http("Module failed".to_string())),
-            702 => Err(NominatimError::Http("Module call failed".to_string())),
-            703 => Err(NominatimError::Http("Query failed".to_string())),
-            704 => Err(NominatimError::Http("No value".to_string())),
-            _ => Err(NominatimError::Http(status.to_string())),
-        }
+        Ok(status)
     }
-}
 
-impl Nominatim {
-    pub fn parse(geocode_json: &Value) -> Result<Self, NominatimError> {
-        let latitude = match &geocode_json["lat"] {
-            Value::String(s) => s.clone(),
-            _ => "UNKNOWN".to_string(),
+    /// Get [`Place`]s from a search query.
+    pub async fn search(&self, query: impl AsRef<str>) -> Result<Vec<Place>, reqwest::Error> {
+        let mut url = self.base_url.clone();
+        url.set_query(Some(&format!(
+            "addressdetails=1&extratags=1&q={}&format=json",
+            query.as_ref().replace(" ", "+")
+        )));
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_str(&self.ident.header()).unwrap(),
+            HeaderValue::from_str(&self.ident.value()).unwrap(),
+        );
+
+        let response = match self.client.get(url).headers(headers).send().await {
+            Ok(response) => response,
+            Err(err) => return Err(err),
         };
 
-        let longitude = match &geocode_json["lon"] {
-            Value::String(s) => s.clone(),
-            _ => "UNKNOWN".to_string(),
+        let places: Vec<Place> = match response.json().await {
+            Ok(place) => place,
+            Err(err) => return Err(err),
         };
 
-        let latitude: f64 = match latitude.parse() {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Json(error.to_string())),
-        };
+        Ok(places)
+    }
 
-        let longitude: f64 = match longitude.parse() {
-            Ok(data) => data,
-            Err(error) => return Err(NominatimError::Json(error.to_string())),
-        };
+    /// Generate a [`Place`] from latitude and longitude
+    pub async fn reverse(
+        &self,
+        latitude: impl AsRef<str>,
+        longitude: impl AsRef<str>,
+        zoom: Option<u8>,
+    ) -> Result<Place, reqwest::Error> {
+        let mut url = self.base_url.clone();
+        url.set_path("/reverse");
 
-        let location = match &geocode_json["display_name"] {
-            Value::String(s) => s.clone(),
-            _ => {
-                return Err(NominatimError::Json(
-                    "couldn't find the geocoded location".to_string(),
-                ))
+        match zoom {
+            Some(zoom) => {
+                url.set_query(Some(&format!(
+                    "addressdetails=1&extratags=1&format=json&lat={}&lon={}&zoom={}",
+                    latitude.as_ref().replace(" ", ""),
+                    longitude.as_ref().replace(" ", ""),
+                    zoom
+                )));
             }
+            None => {
+                url.set_query(Some(&format!(
+                    "addressdetails=1&extratags=1&format=json&lat={}&lon={}",
+                    latitude.as_ref().replace(" ", ""),
+                    longitude.as_ref().replace(" ", ""),
+                )));
+            }
+        }
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_str(&self.ident.header()).unwrap(),
+            HeaderValue::from_str(&self.ident.value()).unwrap(),
+        );
+
+        let response = match self.client.get(url).headers(headers).send().await {
+            Ok(response) => response,
+            Err(err) => return Err(err),
         };
 
-        let place_id = match &geocode_json["place_id"] {
-            Value::Number(s) => match s.as_u64() {
-                Some(n) => n as usize,
-                None => {
-                    return Err(NominatimError::Json(
-                        "couldn't find the geocoded place_id as a number".to_string(),
-                    ))
-                }
-            },
-            _ => 0,
+        let place: Place = match response.json().await {
+            Ok(place) => place,
+            Err(err) => return Err(err),
         };
 
-        let osm_id = match &geocode_json["osm_id"] {
-            Value::Number(s) => match s.as_u64() {
-                Some(n) => n as usize,
-                None => {
-                    return Err(NominatimError::Json(
-                        "couldn't find the geocoded osm_id as a number".to_string(),
-                    ))
-                }
-            },
-            _ => 0,
+        Ok(place)
+    }
+
+    /// Return [`Place`]s from a list of OSM Node, Way, or Relations.
+    pub async fn lookup(&self, queries: Vec<&str>) -> Result<Vec<Place>, reqwest::Error> {
+        let queries = queries.join(",");
+
+        let mut url = self.base_url.clone();
+        url.set_path("/lookup");
+        url.set_query(Some(&format!(
+            "osm_ids={}&addressdetails=1&extratags=1&format=json",
+            queries
+        )));
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_str(&self.ident.header()).unwrap(),
+            HeaderValue::from_str(&self.ident.value()).unwrap(),
+        );
+
+        let response = match self.client.get(url).headers(headers).send().await {
+            Ok(response) => response,
+            Err(err) => return Err(err),
         };
 
-        let address: Option<Address> = match geocode_json.get("address") {
-            Some(data) => Address::from_json(data),
-            None => None,
+        let places: Vec<Place> = match response.json().await {
+            Ok(place) => place,
+            Err(err) => return Err(err),
         };
 
-        Ok(Self {
-            latitude,
-            longitude,
-            location,
-            place_id,
-            osm_id,
-            address,
-        })
+        Ok(places)
     }
 }
 
-/// An error enum for Nominatim.
-#[derive(Error, Debug)]
-pub enum NominatimError {
-    #[error("http error {0}")]
-    Http(String),
-    #[error("json error {0}")]
-    Json(String),
+/// The status of a nominatim server.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Status {
+    pub status: usize,
+    pub message: String,
+    pub data_updated: Option<String>,
+    pub software_version: Option<String>,
+    pub database_version: Option<String>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+/// A location returned by the nominatim server.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Place {
+    #[serde(default)]
+    pub place_id: usize,
+    #[serde(default)]
+    pub licence: String,
+    #[serde(default)]
+    pub osm_type: String,
+    #[serde(default)]
+    pub osm_id: usize,
+    #[serde(default)]
+    pub boundingbox: Vec<String>,
+    #[serde(default)]
+    pub lat: String,
+    #[serde(default)]
+    pub lon: String,
+    #[serde(default)]
+    pub display_name: String,
+    pub class: Option<String>,
+    #[serde(rename = "type")]
+    pub _type: Option<String>,
+    pub importance: Option<f64>,
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub address: Option<Address>,
+    pub extratags: Option<ExtraTags>,
+}
+
+/// An address that a place can have.
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Address {
-    pub house_number: Option<String>,
-    pub road: Option<String>,
-    pub suburb: Option<String>,
-    pub neighbourhood: Option<String>,
-    pub town: Option<String>,
     pub city: Option<String>,
-    pub county: Option<String>,
+    pub state_district: Option<String>,
     pub state: Option<String>,
-    pub postcode: Option<usize>,
+    #[serde(rename = "ISO3166-2-lvl4")]
+    pub iso3166_2_lvl4: Option<String>,
+    pub postcode: Option<String>,
     pub country: Option<String>,
     pub country_code: Option<String>,
 }
 
-impl Address {
-    pub fn from_json(data: &Value) -> Option<Self> {
-        let house_number = match &data["house_number"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let road = match &data["road"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let suburb = match &data["suburb"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let neighbourhood = match &data["neighbourhood"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let town = match &data["town"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let city = match &data["city"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let county = match &data["county"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let state = match &data["state"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let postcode = match &data["postcode"] {
-            Value::Number(s) => s.as_u64().map(|n| n as usize),
-            _ => None,
-        };
-
-        let country = match &data["country"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let country_code = match &data["country_code"] {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        };
-
-        let address = Address {
-            house_number,
-            road,
-            suburb,
-            neighbourhood,
-            town,
-            city,
-            county,
-            state,
-            postcode,
-            country,
-            country_code,
-        };
-
-        Some(address)
-    }
+/// Some extra metadata that a place might have.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExtraTags {
+    pub capital: Option<String>,
+    pub website: Option<String>,
+    pub wikidata: Option<String>,
+    pub wikipedia: Option<String>,
+    pub population: Option<String>,
 }
