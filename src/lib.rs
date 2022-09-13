@@ -11,6 +11,7 @@ mod ident;
 pub use ident::IdentificationMethod;
 
 /// The interface for accessing a nominatim API server.
+#[derive(Debug, Clone)]
 pub struct Client {
     ident: IdentificationMethod, // how to access the server
     base_url: Url,               // defaults to https://nominatim.openstreetmap.org

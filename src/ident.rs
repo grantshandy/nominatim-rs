@@ -1,4 +1,5 @@
 /// Which method to access the nominatim API.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IdentificationMethod {
     Referer(String),
     UserAgent(String),
