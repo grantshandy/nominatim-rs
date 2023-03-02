@@ -36,8 +36,7 @@ impl Client {
 
     /// Check the status of the nominatim server.
     pub async fn status(&self) -> Result<Status, reqwest::Error> {
-        let mut url = self.base_url.clone();
-        url.set_path("status.php");
+        let mut url = self.base_url.join("status.php").unwrap();
         url.set_query(Some("format=json"));
 
         let mut headers = HeaderMap::new();
@@ -64,7 +63,7 @@ impl Client {
         let mut url = self.base_url.clone();
         url.set_query(Some(&format!(
             "addressdetails=1&extratags=1&q={}&format=json",
-            query.as_ref().replace(" ", "+")
+            query.as_ref().replace(' ', "+")
         )));
 
         let mut headers = HeaderMap::new();
@@ -93,23 +92,22 @@ impl Client {
         longitude: impl AsRef<str>,
         zoom: Option<u8>,
     ) -> Result<Place, reqwest::Error> {
-        let mut url = self.base_url.clone();
-        url.set_path("/reverse");
+        let mut url = self.base_url.join("reverse").unwrap();
 
         match zoom {
             Some(zoom) => {
                 url.set_query(Some(&format!(
                     "addressdetails=1&extratags=1&format=json&lat={}&lon={}&zoom={}",
-                    latitude.as_ref().replace(" ", ""),
-                    longitude.as_ref().replace(" ", ""),
+                    latitude.as_ref().replace(' ', ""),
+                    longitude.as_ref().replace(' ', ""),
                     zoom
                 )));
             }
             None => {
                 url.set_query(Some(&format!(
                     "addressdetails=1&extratags=1&format=json&lat={}&lon={}",
-                    latitude.as_ref().replace(" ", ""),
-                    longitude.as_ref().replace(" ", ""),
+                    latitude.as_ref().replace(' ', ""),
+                    longitude.as_ref().replace(' ', ""),
                 )));
             }
         }
@@ -137,8 +135,7 @@ impl Client {
     pub async fn lookup(&self, queries: Vec<&str>) -> Result<Vec<Place>, reqwest::Error> {
         let queries = queries.join(",");
 
-        let mut url = self.base_url.clone();
-        url.set_path("/lookup");
+        let mut url = self.base_url.join("lookup").unwrap();
         url.set_query(Some(&format!(
             "osm_ids={}&addressdetails=1&extratags=1&format=json",
             queries
