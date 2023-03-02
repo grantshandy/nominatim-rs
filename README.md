@@ -1,5 +1,13 @@
 # nominatim-rs
-API bindings for the reverse geocoding API.
+Rust API bindings for the [nominatim] reverse geocoding API.
+
+I've tried to keep this library simple and accessible for beginners so you can
+easily use it in your own projects. If you are looking for a new feature or
+notice a bug open a PR or issue on the [Github repository][github] and I'll try
+to get to it as quickly as possible.
+
+[nominatim]: https://nominatim.org
+[github]: https://github.com/grantshandy/nominatim-rs
 
 ## Examples
 **Create a client:**
@@ -21,7 +29,7 @@ Returns:
 OK
 ```
 
-**Search for some places with just a simple query:**
+**Search for some places with a simple query:**
 ```rust no_run
 let search_results = client.search("statue of liberty").await.unwrap();
 
@@ -59,7 +67,7 @@ Returns:
 Statue of Liberty, Flagpole Plaza, Manhattan Community Board 1, Manhattan, New York County, City of New York, New York, 10004, United States
 ```
 
-**Lookup places from a list of OSM Node, Way, or Relations:**
+**Lookup places from a list of OSM Nodes, Ways, or Relations:**
 ```rust no_run
 let lookup_results = client.lookup(vec!["R146656", "W50637691"]).await.unwrap();
 
@@ -68,17 +76,35 @@ for place in lookup_results {
 }
 ```
 
-Results:
+Returns:
 ```
 Manchester, Greater Manchester, England, United Kingdom
 Brandenburger Tor, Brandenburger Straße, Historische Innenstadt, Innenstadt, Potsdam, Brandenburg, 14467, Deutschland
 ```
 
+## Changelog
+
+0.1.0:
+ - Initial release.
+
+0.2.0:
+ - Require an identification method for API access.
+
+0.3.0:
+ - Switch to tokio/reqwest instead of surf/async-std because it's more common.
+
+0.3.1:
+ - Add `Clone`/`Debug` for various structs.
+
+0.3.2:
+ - Allow API endpoints at other than at the URL's base path.
+ - Clean up code and documentation.
+
 ## License
 ```
 MIT License
 
-Copyright (c) 2022 Grant Handy
+Copyright (c) 2023 Grant Handy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

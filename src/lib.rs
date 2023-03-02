@@ -19,6 +19,7 @@ pub struct Client {
 }
 
 impl Client {
+    /// Create a new [`Client`] from an [`IdentificationMethod`].
     pub fn new(ident: IdentificationMethod) -> Self {
         Self {
             ident,
@@ -27,7 +28,7 @@ impl Client {
         }
     }
 
-    /// Set the client's internal base url for all the requests.
+    /// Set the client's internal base url for all requests.
     pub fn set_base_url(&mut self, url: impl AsRef<str>) -> Result<(), url::ParseError> {
         self.base_url = Url::parse(url.as_ref())?;
 
@@ -41,21 +42,18 @@ impl Client {
 
         let mut headers = HeaderMap::new();
         headers.append(
-            HeaderName::from_str(&self.ident.header()).unwrap(),
-            HeaderValue::from_str(&self.ident.value()).unwrap(),
+            HeaderName::from_str(&self.ident.header()).expect("invalid nominatim auth header name"),
+            HeaderValue::from_str(&self.ident.value())
+                .expect("invalid nominatim auth header value"),
         );
 
-        let response = match self.client.get(url).headers(headers).send().await {
-            Ok(response) => response,
-            Err(err) => return Err(err),
-        };
-
-        let status: Status = match response.json().await {
-            Ok(status) => status,
-            Err(err) => return Err(err),
-        };
-
-        Ok(status)
+        self.client
+            .get(url)
+            .headers(headers)
+            .send()
+            .await?
+            .json()
+            .await
     }
 
     /// Get [`Place`]s from a search query.
@@ -68,24 +66,21 @@ impl Client {
 
         let mut headers = HeaderMap::new();
         headers.append(
-            HeaderName::from_str(&self.ident.header()).unwrap(),
-            HeaderValue::from_str(&self.ident.value()).unwrap(),
+            HeaderName::from_str(&self.ident.header()).expect("invalid nominatim auth header name"),
+            HeaderValue::from_str(&self.ident.value())
+                .expect("invalid nominatim auth header value"),
         );
 
-        let response = match self.client.get(url).headers(headers).send().await {
-            Ok(response) => response,
-            Err(err) => return Err(err),
-        };
-
-        let places: Vec<Place> = match response.json().await {
-            Ok(place) => place,
-            Err(err) => return Err(err),
-        };
-
-        Ok(places)
+        self.client
+            .get(url)
+            .headers(headers)
+            .send()
+            .await?
+            .json()
+            .await
     }
 
-    /// Generate a [`Place`] from latitude and longitude
+    /// Generate a [`Place`] from latitude and longitude.
     pub async fn reverse(
         &self,
         latitude: impl AsRef<str>,
@@ -114,21 +109,18 @@ impl Client {
 
         let mut headers = HeaderMap::new();
         headers.append(
-            HeaderName::from_str(&self.ident.header()).unwrap(),
-            HeaderValue::from_str(&self.ident.value()).unwrap(),
+            HeaderName::from_str(&self.ident.header()).expect("invalid nominatim auth header name"),
+            HeaderValue::from_str(&self.ident.value())
+                .expect("invalid nominatim auth header value"),
         );
 
-        let response = match self.client.get(url).headers(headers).send().await {
-            Ok(response) => response,
-            Err(err) => return Err(err),
-        };
-
-        let place: Place = match response.json().await {
-            Ok(place) => place,
-            Err(err) => return Err(err),
-        };
-
-        Ok(place)
+        self.client
+            .get(url)
+            .headers(headers)
+            .send()
+            .await?
+            .json()
+            .await
     }
 
     /// Return [`Place`]s from a list of OSM Node, Way, or Relations.
@@ -143,21 +135,18 @@ impl Client {
 
         let mut headers = HeaderMap::new();
         headers.append(
-            HeaderName::from_str(&self.ident.header()).unwrap(),
-            HeaderValue::from_str(&self.ident.value()).unwrap(),
+            HeaderName::from_str(&self.ident.header()).expect("invalid nominatim auth header name"),
+            HeaderValue::from_str(&self.ident.value())
+                .expect("invalid nominatim auth header value"),
         );
 
-        let response = match self.client.get(url).headers(headers).send().await {
-            Ok(response) => response,
-            Err(err) => return Err(err),
-        };
-
-        let places: Vec<Place> = match response.json().await {
-            Ok(place) => place,
-            Err(err) => return Err(err),
-        };
-
-        Ok(places)
+        self.client
+            .get(url)
+            .headers(headers)
+            .send()
+            .await?
+            .json()
+            .await
     }
 }
 
@@ -200,7 +189,7 @@ pub struct Place {
     pub extratags: Option<ExtraTags>,
 }
 
-/// An address that a place can have.
+/// An address for a place.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Address {
     pub city: Option<String>,
