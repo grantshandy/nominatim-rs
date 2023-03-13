@@ -100,6 +100,9 @@ Brandenburger Tor, Brandenburger Straße, Historische Innenstadt, Innenstadt, Po
  - Allow API endpoints at other than at the URL's base path.
  - Clean up code and documentation.
 
+0.3.3:
+ - Add 10 second timeout for HTTP requests.
+
 ## License
 ```
 MIT License
