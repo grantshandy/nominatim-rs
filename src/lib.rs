@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,8 @@ use url::Url;
 mod ident;
 
 pub use ident::IdentificationMethod;
+
+const TIMEOUT_SECONDS: u64 = 10;
 
 /// The interface for accessing a nominatim API server.
 #[derive(Debug, Clone)]
@@ -24,7 +26,10 @@ impl Client {
         Self {
             ident,
             base_url: Url::parse("https://nominatim.openstreetmap.org/").unwrap(),
-            client: reqwest::Client::new(),
+            client: reqwest::ClientBuilder::new()
+                .timeout(Duration::from_secs(TIMEOUT_SECONDS))
+                .build()
+                .unwrap(),
         }
     }
 
