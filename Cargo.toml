@@ -10,8 +10,14 @@ keywords = ["async", "coordinates", "nominatim", "geocoding", "location"]
 categories = ["api-bindings", "asynchronous"]
 license = "MIT"
 
+[features]
+default = ["reqwest/default-tls"]
+
+# Enables common rustls code.
+rustls = ["reqwest/__rustls"]
+
 [dependencies]
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 url = "2.3"
 
