@@ -10,37 +10,42 @@ mod ident;
 
 pub use ident::IdentificationMethod;
 
-const TIMEOUT_SECONDS: u64 = 10;
-
-/// The interface for accessing a nominatim API server.
+/// The interface for accessing a Nominatim API server.
 #[derive(Debug, Clone)]
 pub struct Client {
     ident: IdentificationMethod, // how to access the server
     base_url: Url,               // defaults to https://nominatim.openstreetmap.org
     client: reqwest::Client,
+    /// HTTP Request Timeout [`Duration`]
+    pub timeout: Duration,
 }
 
 impl Client {
     /// Create a new [`Client`] from an [`IdentificationMethod`].
     pub fn new(ident: IdentificationMethod) -> Self {
+        let timeout = Duration::from_secs(10);
+
         Self {
             ident,
             base_url: Url::parse("https://nominatim.openstreetmap.org/").unwrap(),
             client: reqwest::ClientBuilder::new()
-                .timeout(Duration::from_secs(TIMEOUT_SECONDS))
+                .timeout(timeout)
                 .build()
                 .unwrap(),
+            timeout,
         }
     }
 
     /// Set the client's internal base url for all requests.
-    pub fn set_base_url(&mut self, url: impl AsRef<str>) -> Result<(), url::ParseError> {
-        self.base_url = Url::parse(url.as_ref())?;
+    pub fn set_base_url<U: TryInto<Url>>(&mut self, url: U) -> Result<(), U::Error> {
+        self.base_url = url.try_into()?;
 
         Ok(())
     }
 
     /// Check the status of the nominatim server.
+    ///
+    /// [Documentation](https://nominatim.org/release-docs/develop/api/Status/)
     pub async fn status(&self) -> Result<Status, reqwest::Error> {
         let mut url = self.base_url.join("status.php").unwrap();
         url.set_query(Some("format=json"));
@@ -55,6 +60,7 @@ impl Client {
         self.client
             .get(url)
             .headers(headers)
+            .timeout(self.timeout)
             .send()
             .await?
             .json()
@@ -62,6 +68,8 @@ impl Client {
     }
 
     /// Get [`Place`]s from a search query.
+    ///
+    /// [Documentation](https://nominatim.org/release-docs/develop/api/Search/)
     pub async fn search(&self, query: impl AsRef<str>) -> Result<Vec<Place>, reqwest::Error> {
         let mut url = self.base_url.clone();
         url.set_query(Some(&format!(
@@ -79,6 +87,7 @@ impl Client {
         self.client
             .get(url)
             .headers(headers)
+            .timeout(self.timeout)
             .send()
             .await?
             .json()
@@ -86,6 +95,8 @@ impl Client {
     }
 
     /// Generate a [`Place`] from latitude and longitude.
+    ///
+    /// [Documentation](https://nominatim.org/release-docs/develop/api/Reverse/)
     pub async fn reverse(
         &self,
         latitude: impl AsRef<str>,
@@ -122,6 +133,7 @@ impl Client {
         self.client
             .get(url)
             .headers(headers)
+            .timeout(self.timeout)
             .send()
             .await?
             .json()
@@ -129,6 +141,8 @@ impl Client {
     }
 
     /// Return [`Place`]s from a list of OSM Node, Way, or Relations.
+    ///
+    /// [Documentation](https://nominatim.org/release-docs/develop/api/Lookup/)
     pub async fn lookup(&self, queries: Vec<&str>) -> Result<Vec<Place>, reqwest::Error> {
         let queries = queries.join(",");
 
@@ -148,6 +162,7 @@ impl Client {
         self.client
             .get(url)
             .headers(headers)
+            .timeout(self.timeout)
             .send()
             .await?
             .json()
@@ -155,7 +170,7 @@ impl Client {
     }
 }
 
-/// The status of a nominatim server.
+/// The status of a Nominatim server.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Status {
     pub status: usize,
@@ -165,7 +180,7 @@ pub struct Status {
     pub database_version: Option<String>,
 }
 
-/// A location returned by the nominatim server.
+/// A location returned by the Nominatim server.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Place {
     #[serde(default)]
@@ -207,7 +222,7 @@ pub struct Address {
     pub country_code: Option<String>,
 }
 
-/// Some extra metadata that a place might have.
+/// Extra metadata that a place may have.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExtraTags {
     pub capital: Option<String>,

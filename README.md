@@ -103,6 +103,11 @@ Brandenburger Tor, Brandenburger Straße, Historische Innenstadt, Innenstadt, Po
 0.3.3:
  - Add 10 second timeout for HTTP requests.
 
+0.3.4:
+ - Generalize `Client::set_base_url` to allow `TryInto<Url>`.
+ - Expose `Client::timeout` for custom/no HTTP request timeouts.
+ - Add a `rustls` feature for compiling without OpenSSL.
+
 ## License
 ```
 MIT License

@@ -6,11 +6,9 @@ async fn main() {
         "Example Application Name",
     ));
 
-    
     println!("---- status ----");
     let status = client.status().await.unwrap();
     println!("{}", status.message);
-
 
     println!("---- search ----");
     let search_results = client.search("statue of liberty").await.unwrap();
@@ -19,7 +17,6 @@ async fn main() {
         println!("{}", place.display_name);
     }
 
-
     println!("---- reverse ----");
     let reverse_search = client
         .reverse("40.689249", "-74.044500", None)
@@ -27,7 +24,6 @@ async fn main() {
         .unwrap();
 
     println!("{}", reverse_search.display_name);
-
 
     println!("---- lookup ----");
     let lookup_results = client.lookup(vec!["R146656", "W50637691"]).await.unwrap();
