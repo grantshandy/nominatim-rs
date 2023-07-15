@@ -108,6 +108,9 @@ Brandenburger Tor, Brandenburger Straße, Historische Innenstadt, Innenstadt, Po
  - Expose `Client::timeout` for custom/no HTTP request timeouts.
  - Add a `rustls` feature for compiling without OpenSSL.
 
+ 0.3.5:
+ - Update `rustls` feature to be more general.
+
 ## License
 ```
 MIT License
