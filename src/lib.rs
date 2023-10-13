@@ -36,6 +36,20 @@ impl Client {
         }
     }
 
+    pub fn with_url(ident: IdentificationMethod, url: Url) -> Self {
+        let timeout = Duration::from_secs(10);
+
+        Self {
+            ident,
+            base_url: url,
+            client: reqwest::ClientBuilder::new()
+                .timeout(timeout)
+                .build()
+                .unwrap(),
+            timeout,
+        }
+    }
+
     /// Set the client's internal base url for all requests.
     pub fn set_base_url<U: TryInto<Url>>(&mut self, url: U) -> Result<(), U::Error> {
         self.base_url = url.try_into()?;

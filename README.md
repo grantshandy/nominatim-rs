@@ -21,7 +21,7 @@ let client = Client::new(IdentificationMethod::from_user_agent(
 ```rust no_run
 let status = client.status().await.unwrap();
 
-println!("{}", client.status().await.unwrap());
+println!("{:?}", status);
 ```
 
 Returns:
