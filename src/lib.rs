@@ -210,16 +210,78 @@ pub struct Place {
 }
 
 /// An address for a place.
+///
+/// [Address details](https://nominatim.org/release-docs/latest/api/Output/#addressdetails)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Address {
-    pub city: Option<String>,
-    pub state_district: Option<String>,
-    pub state: Option<String>,
-    #[serde(rename = "ISO3166-2-lvl4")]
-    pub iso3166_2_lvl4: Option<String>,
-    pub postcode: Option<String>,
+    pub continent: Option<String>,
+
     pub country: Option<String>,
     pub country_code: Option<String>,
+
+    pub region: Option<String>,
+    pub state: Option<String>,
+    pub state_district: Option<String>,
+    pub county: Option<String>,
+    #[serde(rename = "ISO3166-2-lvl4")]
+    pub iso3166_2_lvl4: Option<String>,
+
+    pub municipality: Option<String>,
+    pub city: Option<String>,
+    pub town: Option<String>,
+    pub village: Option<String>,
+
+    pub city_district: Option<String>,
+    pub district: Option<String>,
+    pub borough: Option<String>,
+    pub suburb: Option<String>,
+    pub subdivision: Option<String>,
+
+    pub hamlet: Option<String>,
+    pub croft: Option<String>,
+    pub isolated_dwelling: Option<String>,
+
+    pub neighbourhood: Option<String>,
+    pub allotments: Option<String>,
+    pub quarter: Option<String>,
+
+    pub city_block: Option<String>,
+    pub residential: Option<String>,
+    pub farm: Option<String>,
+    pub farmyard: Option<String>,
+    pub industrial: Option<String>,
+    pub commercial: Option<String>,
+    pub retail: Option<String>,
+
+    pub road: Option<String>,
+
+    pub house_number: Option<String>,
+    pub house_name: Option<String>,
+
+    pub emergency: Option<String>,
+    pub historic: Option<String>,
+    pub military: Option<String>,
+    pub natural: Option<String>,
+    pub landuse: Option<String>,
+    pub place: Option<String>,
+    pub railway: Option<String>,
+    pub man_made: Option<String>,
+    pub aerialway: Option<String>,
+    pub boundary: Option<String>,
+    pub amenity: Option<String>,
+    pub aeroway: Option<String>,
+    pub club: Option<String>,
+    pub craft: Option<String>,
+    pub leisure: Option<String>,
+    pub office: Option<String>,
+    pub mountain_pass: Option<String>,
+    pub shop: Option<String>,
+    pub tourism: Option<String>,
+    pub bridge: Option<String>,
+    pub tunnel: Option<String>,
+    pub waterway: Option<String>,
+
+    pub postcode: Option<String>,
 }
 
 /// Extra metadata that a place may have.
