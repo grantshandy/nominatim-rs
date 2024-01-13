@@ -6,17 +6,17 @@ pub enum IdentificationMethod {
 }
 
 impl IdentificationMethod {
-    pub fn header(&self) -> String {
+    pub fn header(&self) -> &'static str {
         match self {
-            Self::Referer(_) => "Referer".to_string(),
-            Self::UserAgent(_) => "User-Agent".to_string(),
+            Self::Referer(_) => "Referer",
+            Self::UserAgent(_) => "User-Agent",
         }
     }
 
-    pub fn value(&self) -> String {
+    pub fn value(self) -> String {
         match self {
-            Self::Referer(value) => value.to_string(),
-            Self::UserAgent(value) => value.to_string(),
+            Self::Referer(value) => value,
+            Self::UserAgent(value) => value,
         }
     }
 

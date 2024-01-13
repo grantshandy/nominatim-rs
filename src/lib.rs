@@ -72,7 +72,7 @@ impl Client {
         let mut url = self.base_url.join("status.php").unwrap();
         url.set_query(Some("format=json"));
 
-        let headers = mk_headers(&self.ident);
+        let headers = mk_headers(self.ident.clone());
 
         fetch(&self.client, url, self.timeout, headers).await
     }
@@ -87,7 +87,7 @@ impl Client {
             query.as_ref().replace(' ', "+")
         )));
 
-        let headers = mk_headers(&self.ident);
+        let headers = mk_headers(self.ident.clone());
 
         fetch(&self.client, url, self.timeout, headers).await
     }
@@ -121,7 +121,7 @@ impl Client {
             }
         }
 
-        let headers = mk_headers(&self.ident);
+        let headers = mk_headers(self.ident.clone());
 
         fetch(&self.client, url, self.timeout, headers).await
     }
@@ -138,7 +138,7 @@ impl Client {
             queries
         )));
 
-        let headers = mk_headers(&self.ident);
+        let headers = mk_headers(self.ident.clone());
 
         fetch(&self.client, url, self.timeout, headers).await
     }
@@ -207,10 +207,10 @@ pub struct ExtraTags {
 }
 
 #[cfg(feature = "reqwest")]
-fn mk_headers(ident: &IdentificationMethod) -> HeaderMap {
+fn mk_headers(ident: IdentificationMethod) -> HeaderMap {
     let mut hs = HeaderMap::new();
     hs.append(
-        HeaderName::from_str(&ident.header())
+        HeaderName::from_str(ident.header())
             .expect("invalid nominatim auth header name"),
         HeaderValue::from_str(&ident.value())
             .expect("invalid nominatim auth header value"),
@@ -218,10 +218,10 @@ fn mk_headers(ident: &IdentificationMethod) -> HeaderMap {
     hs
 }
 #[cfg(feature = "wasm")]
-fn mk_headers(ident: &IdentificationMethod) -> Headers {
+fn mk_headers(ident: IdentificationMethod) -> Headers {
     let hs = Headers::new();
     hs.append(
-        &ident.header(),
+        ident.header(),
         &ident.value(),
     );
     hs
