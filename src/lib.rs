@@ -88,7 +88,25 @@ impl Client {
         let mut url = self.base_url.clone();
         url.set_query(Some(&format!(
             "addressdetails=1&extratags=1&q={}&format=json",
-            query.as_ref().replace(' ', "+")
+            // query.as_ref().replace(' ', "+")
+            urlencoding::encode(query.as_ref())
+        )));
+
+        let headers = self.ident.clone().map(|hs| mk_headers(hs));
+
+        fetch(&self.client, url, self.timeout, headers).await
+    }
+
+    /// Get [`Place`]s from a structured search query.
+    ///
+    /// [Documentation](https://nominatim.org/release-docs/develop/api/Search/)
+    pub async fn search_structured(&self, params: StructuredSearch) -> Result<Vec<Place>, Error> {
+        let mut url = self.base_url.clone();
+        url.set_query(Some(&format!(
+            "addressdetails=1&extratags=1&format=json&{}",
+            // query.as_ref().replace(' ', "+")
+            // urlencoding::encode(query.as_ref())
+            serde_urlencoded::to_string(params).expect("couldn't encode params as urlencoded")
         )));
 
         let headers = self.ident.clone().map(|hs| mk_headers(hs));
@@ -274,4 +292,29 @@ where
         .await?
         .json()
         .await
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default, Ord, PartialOrd)]
+pub struct StructuredSearch {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    amenity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    street: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    county: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    postalcode: Option<String>,
 }
