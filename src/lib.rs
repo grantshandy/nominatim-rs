@@ -22,9 +22,9 @@ type HttpClient = reqwest::Client;
 type HttpClient = ();
 
 #[cfg(feature = "reqwest")]
-type Error = reqwest::Error;
+pub type Error = reqwest::Error;
 #[cfg(feature = "wasm")]
-type Error = net::Error;
+pub type Error = net::Error;
 
 
 /// The interface for accessing a Nominatim API server.
