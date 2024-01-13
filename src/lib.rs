@@ -30,7 +30,7 @@ type Error = net::Error;
 /// The interface for accessing a Nominatim API server.
 #[derive(Debug, Clone)]
 pub struct Client {
-    ident: IdentificationMethod, // how to access the server
+    ident: Option<IdentificationMethod>, // how to access the server
     base_url: Url,               // defaults to https://nominatim.openstreetmap.org
     client: HttpClient,
     /// HTTP Request Timeout [`Duration`]
@@ -39,7 +39,7 @@ pub struct Client {
 
 impl Client {
     /// Create a new [`Client`] from an [`IdentificationMethod`].
-    pub fn new(ident: IdentificationMethod) -> Self {
+    pub fn new() -> Self {
         let timeout = Duration::from_secs(10);
 
         #[cfg(feature = "reqwest")]
@@ -51,11 +51,15 @@ impl Client {
         let client = ();
 
         Self {
-            ident,
+            ident: None,
             base_url: Url::parse("https://nominatim.openstreetmap.org/").unwrap(),
             client,
             timeout,
         }
+    }
+
+    pub fn set_ident(&mut self, ident: IdentificationMethod) {
+        self.ident = Some(ident);
     }
 
     /// Set the client's internal base url for all requests.
@@ -72,7 +76,7 @@ impl Client {
         let mut url = self.base_url.join("status.php").unwrap();
         url.set_query(Some("format=json"));
 
-        let headers = mk_headers(self.ident.clone());
+        let headers = self.ident.clone().map(|hs| mk_headers(hs));
 
         fetch(&self.client, url, self.timeout, headers).await
     }
@@ -87,7 +91,7 @@ impl Client {
             query.as_ref().replace(' ', "+")
         )));
 
-        let headers = mk_headers(self.ident.clone());
+        let headers = self.ident.clone().map(|hs| mk_headers(hs));
 
         fetch(&self.client, url, self.timeout, headers).await
     }
@@ -121,7 +125,7 @@ impl Client {
             }
         }
 
-        let headers = mk_headers(self.ident.clone());
+        let headers = self.ident.clone().map(|hs| mk_headers(hs));
 
         fetch(&self.client, url, self.timeout, headers).await
     }
@@ -138,7 +142,7 @@ impl Client {
             queries
         )));
 
-        let headers = mk_headers(self.ident.clone());
+        let headers = self.ident.clone().map(|hs| mk_headers(hs));
 
         fetch(&self.client, url, self.timeout, headers).await
     }
@@ -233,14 +237,17 @@ async fn fetch<T>(
     client: &HttpClient,
     url: Url,
     timeout: Duration,
-    headers: HeaderMap
+    headers: Option<HeaderMap>
 ) -> Result<T, Error>
 where
     T: DeserializeOwned,
 {
-    client
-        .get(url)
-        .headers(headers)
+    let mut req = client
+        .get(url);
+    if let Some(headers) = headers {
+        req = req.headers(headers);
+    }
+    req
         .timeout(timeout)
         .send()
         .await?
@@ -253,14 +260,16 @@ async fn fetch<T>(
     _client: &HttpClient,
     url: Url,
     _timeout: Duration,
-    headers: Headers
+    headers: Option<Headers>
 ) -> Result<T, Error>
 where
     T: DeserializeOwned,
 {
-    Request::get(url.as_str())
-        .headers(headers)
-    // .timeout(self.timeout)
+    let mut req = Request::get(url.as_str());
+    if let Some(headers) = headers {
+        req = req.headers(headers);
+    }
+    req
         .send()
         .await?
         .json()
