@@ -2,20 +2,37 @@
 
 use std::{str::FromStr, time::Duration};
 
+#[cfg(feature = "reqwest")]
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "wasm")]
+use gloo::net::{self, http::{Request, Headers}};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use url::Url;
 
 mod ident;
 
 pub use ident::IdentificationMethod;
 
+#[cfg(all(feature = "reqwest", feature = "wasm"))]
+compile_error!("Features \"reqwest\" and \"wasm\" are mutually exclusive");
+
+#[cfg(feature = "reqwest")]
+type HttpClient = reqwest::Client;
+#[cfg(feature = "wasm")]
+type HttpClient = ();
+
+#[cfg(feature = "reqwest")]
+type Error = reqwest::Error;
+#[cfg(feature = "wasm")]
+type Error = net::Error;
+
+
 /// The interface for accessing a Nominatim API server.
 #[derive(Debug, Clone)]
 pub struct Client {
     ident: IdentificationMethod, // how to access the server
     base_url: Url,               // defaults to https://nominatim.openstreetmap.org
-    client: reqwest::Client,
+    client: HttpClient,
     /// HTTP Request Timeout [`Duration`]
     pub timeout: Duration,
 }
@@ -25,13 +42,18 @@ impl Client {
     pub fn new(ident: IdentificationMethod) -> Self {
         let timeout = Duration::from_secs(10);
 
+        #[cfg(feature = "reqwest")]
+        let client = reqwest::ClientBuilder::new()
+            .timeout(timeout)
+            .build()
+            .unwrap();
+        #[cfg(feature = "wasm")]
+        let client = ();
+
         Self {
             ident,
             base_url: Url::parse("https://nominatim.openstreetmap.org/").unwrap(),
-            client: reqwest::ClientBuilder::new()
-                .timeout(timeout)
-                .build()
-                .unwrap(),
+            client,
             timeout,
         }
     }
@@ -46,52 +68,28 @@ impl Client {
     /// Check the status of the nominatim server.
     ///
     /// [Documentation](https://nominatim.org/release-docs/develop/api/Status/)
-    pub async fn status(&self) -> Result<Status, reqwest::Error> {
+    pub async fn status(&self) -> Result<Status, Error> {
         let mut url = self.base_url.join("status.php").unwrap();
         url.set_query(Some("format=json"));
 
-        let mut headers = HeaderMap::new();
-        headers.append(
-            HeaderName::from_str(&self.ident.header()).expect("invalid nominatim auth header name"),
-            HeaderValue::from_str(&self.ident.value())
-                .expect("invalid nominatim auth header value"),
-        );
+        let headers = mk_headers(&self.ident);
 
-        self.client
-            .get(url)
-            .headers(headers)
-            .timeout(self.timeout)
-            .send()
-            .await?
-            .json()
-            .await
+        fetch(&self.client, url, self.timeout, headers).await
     }
 
     /// Get [`Place`]s from a search query.
     ///
     /// [Documentation](https://nominatim.org/release-docs/develop/api/Search/)
-    pub async fn search(&self, query: impl AsRef<str>) -> Result<Vec<Place>, reqwest::Error> {
+    pub async fn search(&self, query: impl AsRef<str>) -> Result<Vec<Place>, Error> {
         let mut url = self.base_url.clone();
         url.set_query(Some(&format!(
             "addressdetails=1&extratags=1&q={}&format=json",
             query.as_ref().replace(' ', "+")
         )));
 
-        let mut headers = HeaderMap::new();
-        headers.append(
-            HeaderName::from_str(&self.ident.header()).expect("invalid nominatim auth header name"),
-            HeaderValue::from_str(&self.ident.value())
-                .expect("invalid nominatim auth header value"),
-        );
+        let headers = mk_headers(&self.ident);
 
-        self.client
-            .get(url)
-            .headers(headers)
-            .timeout(self.timeout)
-            .send()
-            .await?
-            .json()
-            .await
+        fetch(&self.client, url, self.timeout, headers).await
     }
 
     /// Generate a [`Place`] from latitude and longitude.
@@ -102,7 +100,7 @@ impl Client {
         latitude: impl AsRef<str>,
         longitude: impl AsRef<str>,
         zoom: Option<u8>,
-    ) -> Result<Place, reqwest::Error> {
+    ) -> Result<Place, Error> {
         let mut url = self.base_url.join("reverse").unwrap();
 
         match zoom {
@@ -123,27 +121,15 @@ impl Client {
             }
         }
 
-        let mut headers = HeaderMap::new();
-        headers.append(
-            HeaderName::from_str(&self.ident.header()).expect("invalid nominatim auth header name"),
-            HeaderValue::from_str(&self.ident.value())
-                .expect("invalid nominatim auth header value"),
-        );
+        let headers = mk_headers(&self.ident);
 
-        self.client
-            .get(url)
-            .headers(headers)
-            .timeout(self.timeout)
-            .send()
-            .await?
-            .json()
-            .await
+        fetch(&self.client, url, self.timeout, headers).await
     }
 
     /// Return [`Place`]s from a list of OSM Node, Way, or Relations.
     ///
     /// [Documentation](https://nominatim.org/release-docs/develop/api/Lookup/)
-    pub async fn lookup(&self, queries: Vec<&str>) -> Result<Vec<Place>, reqwest::Error> {
+    pub async fn lookup(&self, queries: Vec<&str>) -> Result<Vec<Place>, Error> {
         let queries = queries.join(",");
 
         let mut url = self.base_url.join("lookup").unwrap();
@@ -152,21 +138,9 @@ impl Client {
             queries
         )));
 
-        let mut headers = HeaderMap::new();
-        headers.append(
-            HeaderName::from_str(&self.ident.header()).expect("invalid nominatim auth header name"),
-            HeaderValue::from_str(&self.ident.value())
-                .expect("invalid nominatim auth header value"),
-        );
+        let headers = mk_headers(&self.ident);
 
-        self.client
-            .get(url)
-            .headers(headers)
-            .timeout(self.timeout)
-            .send()
-            .await?
-            .json()
-            .await
+        fetch(&self.client, url, self.timeout, headers).await
     }
 }
 
@@ -230,4 +204,65 @@ pub struct ExtraTags {
     pub wikidata: Option<String>,
     pub wikipedia: Option<String>,
     pub population: Option<String>,
+}
+
+#[cfg(feature = "reqwest")]
+fn mk_headers(ident: &IdentificationMethod) -> HeaderMap {
+    let mut hs = HeaderMap::new();
+    hs.append(
+        HeaderName::from_str(&ident.header())
+            .expect("invalid nominatim auth header name"),
+        HeaderValue::from_str(&ident.value())
+            .expect("invalid nominatim auth header value"),
+    );
+    hs
+}
+#[cfg(feature = "wasm")]
+fn mk_headers(ident: &IdentificationMethod) -> Headers {
+    let hs = Headers::new();
+    hs.append(
+        &ident.header(),
+        &ident.value(),
+    );
+    hs
+}
+
+
+#[cfg(feature = "reqwest")]
+async fn fetch<T>(
+    client: &HttpClient,
+    url: Url,
+    timeout: Duration,
+    headers: HeaderMap
+) -> Result<T, Error>
+where
+    T: DeserializeOwned,
+{
+    client
+        .get(url)
+        .headers(headers)
+        .timeout(timeout)
+        .send()
+        .await?
+        .json()
+        .await
+}
+
+#[cfg(feature = "wasm")]
+async fn fetch<T>(
+    _client: &HttpClient,
+    url: Url,
+    _timeout: Duration,
+    headers: Headers
+) -> Result<T, Error>
+where
+    T: DeserializeOwned,
+{
+    Request::get(url.as_str())
+        .headers(headers)
+    // .timeout(self.timeout)
+        .send()
+        .await?
+        .json()
+        .await
 }
