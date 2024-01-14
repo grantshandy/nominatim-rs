@@ -122,7 +122,7 @@ impl Client {
         latitude: impl AsRef<str>,
         longitude: impl AsRef<str>,
         zoom: Option<u8>,
-    ) -> Result<Place, Error> {
+    ) -> Result<Option<Place>, Error> {
         let mut url = self.base_url.join("reverse").unwrap();
 
         match zoom {
@@ -145,7 +145,12 @@ impl Client {
 
         let headers = self.ident.clone().map(|hs| mk_headers(hs));
 
-        fetch(&self.client, url, self.timeout, headers).await
+        let res: Either<ErrorResponse, Place> =
+            fetch(&self.client, url, self.timeout, headers).await?;
+        match res {
+            Either::Left(_) => Ok(None),
+            Either::Right(x) => Ok(Some(x)),
+        }
     }
 
     /// Return [`Place`]s from a list of OSM Node, Way, or Relations.
@@ -317,4 +322,16 @@ pub struct StructuredSearch {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     postalcode: Option<String>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default, Ord, PartialOrd)]
+pub struct ErrorResponse {
+    error: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Either<T, U> {
+    Left(T),
+    Right(U),
 }
