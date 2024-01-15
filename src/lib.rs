@@ -213,9 +213,18 @@ pub struct Place {
 /// An address for a place.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Address {
+    pub floor: Option<String>,
+    pub flats: Option<String>,
+    pub house_number: Option<String>,
+    pub street: Option<String>,
+    pub road: Option<String>,
+    pub suburb: Option<String>,
+    pub neighbourhood: Option<String>,
+    pub village: Option<String>,
     pub city: Option<String>,
     pub state_district: Option<String>,
     pub state: Option<String>,
+    pub province: Option<String>,
     #[serde(rename = "ISO3166-2-lvl4")]
     pub iso3166_2_lvl4: Option<String>,
     pub postcode: Option<String>,
