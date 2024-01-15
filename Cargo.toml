@@ -11,7 +11,7 @@ categories = ["api-bindings", "asynchronous"]
 license = "MIT"
 
 [features]
-# default = ["reqwest"]
+default = ["reqwest"]
 reqwest = ["dep:reqwest", "reqwest/default-tls"]
 rustls = ["reqwest/rustls-tls"]
 wasm = ["dep:gloo"]

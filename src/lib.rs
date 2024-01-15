@@ -14,7 +14,7 @@ mod ident;
 pub use ident::IdentificationMethod;
 
 #[cfg(all(feature = "reqwest", feature = "wasm"))]
-compile_error!("Features \"reqwest\" and \"wasm\" are mutually exclusive");
+compile_error!("Features \"reqwest\" and \"wasm\" are mutually exclusive - did you forget to disable default features for nominatim?");
 
 #[cfg(feature = "reqwest")]
 type HttpClient = reqwest::Client;
