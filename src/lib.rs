@@ -312,25 +312,25 @@ where
 pub struct StructuredSearch {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    amenity: Option<String>,
+    pub amenity: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    street: Option<String>,
+    pub street: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    city: Option<String>,
+    pub city: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    county: Option<String>,
+    pub county: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    state: Option<String>,
+    pub state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    country: Option<String>,
+    pub country: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    postalcode: Option<String>,
+    pub postalcode: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default, Ord, PartialOrd)]
